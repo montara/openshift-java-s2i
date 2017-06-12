@@ -3,47 +3,48 @@ MAINTAINER Chakradhar Rao Jonagam (9chakri@gmail.com)
 
 ENV BUILDER_VERSION 1.1
 
-RUN yum -y update; \ 
-    yum install wget -y; \ 
-    yum install tar -y; \ 
-    yum install unzip -y; \ 
-    yum install ca-certificates -y;\ 
-    yum install sudo -y;\ 
-    yum clean all -y 
+RUN yum -y update; \
+    yum install wget -y; \
+    yum install tar -y; \
+    yum install unzip -y; \
+    yum install ca-certificates -y;\
+    yum install sudo -y;\
+    yum clean all -y
 
-ENV TOMCAT_MAJOR_VERSION 8 
-ENV TOMCAT_MINOR_VERSION 8.0.32 
-ENV CATALINA_HOME /tomcat 
+ENV JDK_VERSION 7u79
+ENV JBOSS_VERSION 6.4.9
+ENV CATALINA_HOME /tomcat
 
-
-# Install openjdk 1.8 
-RUN yum install java-1.8.0-openjdk.x86_64* -y && \ 
+# Install jdk
+RUN yum install http://artifact.abcfinancial.net/artifactory/abc-yum-local/jdk-$JDK_VERSION-linux-x64.rpm -y && \
     yum clean all -y && \
-    rm -rf /var/lib/apt/lists/* 
+    rm -rf /var/lib/apt/lists/*
 
-# INSTALL TOMCAT 
+# INSTALL JBOSS
 WORKDIR /
 
-RUN wget -q -e use_proxy=yes https://archive.apache.org/dist/tomcat/tomcat-8/v8.0.32/bin/apache-tomcat-8.0.32.tar.gz && \
-    tar -zxf apache-tomcat-*.tar.gz &&\
-    rm -f apache-tomcat-*.tar.gz && \
-    mv apache-tomcat* tomcat 
+RUN groupadd -g 1502 jboss
+RUN groupadd -g 510 jbossgrp
+RUN useradd -u 501 -g jbossgrp -m -d /home/jbossusr -s /bin/bash jbossusr
 
+RUN mkdir -m 00755 -p /logs /logs/jboss /logs/jboss/service /etc/jboss
+RUN for dir in /logs /logs/jboss /logs/jboss/service /etc/jboss; do chown jbossusr:jbossgrp $dir; done
 
-ENV JAVA_OPTS="-Dtuf.environment=DEV -Dtuf.appFiles.rootDirectory=/TempDirRoot" 
+RUN wget -q -e use_proxy=yes http://artifact.abcfinancial.net/artifactory/abc-yum-local/jboss-eap-$JBOSS_VERSION.tar.gz" && \
+    tar -zxf jboss-eap-$JBOSS_VERSION.tar.gz &&\
+    rm -f jboss-eap-$JBOSS_VERSION.tar.gz && \
+    mv jboss-eap-$JBOSS_VERSION jboss
 
+RUN cd /jboss && \
+    wget -q -e use_proxy=yes http://artifact.abcfinancial.net/artifactory/generic-local/modules.tar.gz" && \
+    tar -zxf modules.tar.gz &&\
+    rm -f modules.tar.gz
 
-RUN groupadd -r safe 
-RUN useradd  -r -g safe safe 
-RUN mkdir -p /tomcat/webapps /TempDirRoot
-RUN chown -R 1001:1001 /tomcat /TempDirRoot 
-RUN chmod -R 777 /tomcat /TempDirRoot 
-
-RUN cd /tomcat/webapps/; rm -rf ROOT docs examples host-manager manager 
+RUN chown -R jbossusr.jbossgrp /jboss
 
 COPY ./.s2i/bin/ /usr/libexec/s2i
 
-USER 1001
+USER 501
 
 EXPOSE 8080
 
